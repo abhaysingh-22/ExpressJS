@@ -1,0 +1,9 @@
+*.env
+.env
+.env.*
+
+/.vscode
+/node_modules
+
+
+/*basically here we are mentioning the files and folders that we don't want to format with prettier*/
