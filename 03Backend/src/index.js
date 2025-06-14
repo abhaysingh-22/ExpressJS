@@ -27,13 +27,19 @@ const app = express();
 
 */
 
-//require("dotenv").config({path: "./.env"});
+
+
+
+
+
+
+
 import dotenv from "dotenv";
 dotenv.config({
   path: "./.env",
 });
-
 import connectToDatabase from "./db/index.js";
+import { app } from "./app.js"; 
 
 connectToDatabase()
   .then(() => {
