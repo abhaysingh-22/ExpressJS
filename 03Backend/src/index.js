@@ -37,6 +37,7 @@ const app = express();
 import dotenv from "dotenv";
 dotenv.config({
   path: "./.env",
+  override: true // This will override existing environment variables with those in the .env file
 });
 
 import connectToDatabase from "./db/index.js";
@@ -52,3 +53,5 @@ connectToDatabase()
     console.error("Failed to connect to the database:", error);
     process.exit(1); // Exit the process with failure
   });
+
+console.log("process.env.CLOUDINARY_API_KEY", process.env.CLOUDINARY_API_KEY);
