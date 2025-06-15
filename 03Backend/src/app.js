@@ -27,4 +27,14 @@ app.use(cookieParser());
 //routes declaration
 app.use("/api/v1/users", userRoutes);
 
+// Add this at the end of your middleware stack
+app.use((err, req, res, next) => {
+  console.error(err); // This will print the full error in your terminal
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    // error: err, // Uncomment for debugging, but remove in production
+  });
+});
+
 export { app };

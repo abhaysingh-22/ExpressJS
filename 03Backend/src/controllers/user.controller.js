@@ -1,36 +1,44 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
+import { APIError } from "../utils/APIerror.js";
 import {User} from "../models/user.model.js";
-import cloudinary from "../utils/Cloudinary.js";
+import uploadToCloudinary from "../utils/Cloudinary.js";
 import { APIresponse } from "../utils/APIresponse.js"; 
 
+
 const registerUser = asyncHandler(async (req, res) => {
+  console.log("registerUser controller called");
+
   const { fullName, email, password, username } = req.body;
   console.log("email : ", email);
 
   if (!fullName || !email || !password || !username) {
-    throw new ApiError("All fields are required", 400);
+    throw new APIError("All fields are required", 400);
   }
 
-  const existingUser = User.findOne({ email }).then((existingUser) => {
-    if (existingUser) {
-      throw new ApiError("User with this email already exists", 400);
-    }
-  });
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new APIError("User with this email already exists", 400);
+  }
 
   // these below are the properties of multer
-  const avatarPath = req.files?.avatar[0]?.path;
-  const coverImagePath = req.files?.coverImage[0]?.path;
+  const avatarLocalPath = req.files?.avatar[0]?.path;
+  //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
-  if (!avatarPath || !coverImagePath) {
-    throw new ApiError("Avatar and cover image are required", 400);
+  let coverImageLocalPath;
+  if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+      coverImageLocalPath = req.files.coverImage[0].path
+  }
+  
+
+  if (!avatarLocalPath) {
+      throw new APIError(400, "Avatar file is required")
   }
 
-  const avatarUrl = await cloudinary(avatarPath);
-  const coverImageUrl = await cloudinary(coverImagePath);
+  const avatar = await uploadToCloudinary(avatarLocalPath)
+  const coverImage = await uploadToCloudinary(coverImageLocalPath)
 
-  if(!avatarUrl || !coverImageUrl) {
-    throw new ApiError("Error uploading images", 500);
+  if (!avatar) {
+      throw new APIError(400, "Avatar file is required")
   }
 
   const newUser = await User.create({
@@ -38,9 +46,11 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
     username,
-    avatar: avatarUrl || "",
-    coverImage: coverImageUrl || "",
+    avatar: avatar?.url,
+    coverImage: coverImage?.url || "",
   });
+
+  console.log("New user created:", newUser);
 
   // if (!newUser) {
   //   throw new ApiError("User registration failed", 500);
@@ -48,11 +58,11 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const createdUser = await User.findById(newUser._id).select("-password -refreshToken");
   if (!createdUser) {
-    throw new ApiError("User not found after creation", 404);
+    throw new APIError("User not found after creation", 404);
   }
 
   
-  return res.status(200).json(
+  return res.status(201).json(
     new APIresponse(200, "User registered successfully", createdUser)
   );
 });
