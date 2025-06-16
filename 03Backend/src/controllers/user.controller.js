@@ -1,70 +1,64 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIError } from "../utils/APIerror.js";
-import {User} from "../models/user.model.js";
+import { User } from "../models/user.model.js";
 import uploadToCloudinary from "../utils/Cloudinary.js";
-import { APIresponse } from "../utils/APIresponse.js"; 
+import { APIresponse } from "../utils/APIresponse.js";
 
+console.log("User controller loaded");
 
 const registerUser = asyncHandler(async (req, res) => {
-  console.log("registerUser controller called");
-
   const { fullName, email, password, username } = req.body;
-  console.log("email : ", email);
 
   if (!fullName || !email || !password || !username) {
     throw new APIError("All fields are required", 400);
   }
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({
+    $or: [{ email }, { username }],
+  });
   if (existingUser) {
-    throw new APIError("User with this email already exists", 400);
+    throw new APIError("User with this email or username already exists", 409);
   }
 
-  // these below are the properties of multer
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  //const coverImageLocalPath = req.files?.coverImage[0]?.path;
-
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
   let coverImageLocalPath;
-  if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-      coverImageLocalPath = req.files.coverImage[0].path
+
+  if (req.files?.coverImage?.[0]?.path) {
+    coverImageLocalPath = req.files.coverImage[0].path;
   }
-  
 
   if (!avatarLocalPath) {
-      throw new APIError(400, "Avatar file is required")
+    throw new APIError("Avatar file is required", 400);
   }
 
-  const avatar = await uploadToCloudinary(avatarLocalPath)
-  const coverImage = await uploadToCloudinary(coverImageLocalPath)
+  const avatar = await uploadToCloudinary(avatarLocalPath);
+  const coverImage = await uploadToCloudinary(coverImageLocalPath);
 
   if (!avatar) {
-      throw new APIError(400, "Avatar file is required")
+    throw new APIError("Avatar file upload failed", 400);
   }
 
-  const newUser = await User.create({
+  const user = await User.create({
     fullName,
+    avatar: avatar.url,
+    coverImage: coverImage?.url || "",
     email,
     password,
-    username,
-    avatar: avatar?.url,
-    coverImage: coverImage?.url || "",
+    username: username.toLowerCase(),
   });
 
-  console.log("New user created:", newUser);
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
 
-  // if (!newUser) {
-  //   throw new ApiError("User registration failed", 500);
-  // }
-
-  const createdUser = await User.findById(newUser._id).select("-password -refreshToken");
   if (!createdUser) {
-    throw new APIError("User not found after creation", 404);
+    throw new APIError("Something went wrong while registering the user", 500);
   }
 
-  
-  return res.status(201).json(
-    APIresponse(200, "User registered successfully", createdUser)
-  );
+  return res
+    .status(201)
+    .json(APIresponse(200, "User registered successfully", createdUser));
 });
 
 export { registerUser };
+

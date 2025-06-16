@@ -30,13 +30,6 @@ const userSchema = new mongoose.Schema({
         trim: true,
         index: true
     },
-    avatar: {
-        type: String,   //we will use cloudinary for storing images
-        required: true, // Avatar is optional
-    },
-    coverImage: {
-        type: String,   
-    },
     watchHistory: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Video"

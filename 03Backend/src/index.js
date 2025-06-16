@@ -54,4 +54,4 @@ connectToDatabase()
     process.exit(1); // Exit the process with failure
   });
 
-console.log("process.env.CLOUDINARY_API_KEY", process.env.CLOUDINARY_API_KEY);
+// console.log("process.env.CLOUDINARY_API_KEY", process.env.CLOUDINARY_API_KEY);

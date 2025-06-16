@@ -20,11 +20,13 @@
   },
   "license": "ISC",
   "author": "abhay singh",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
   },
   "devDependencies": {
+    "@types/node": "^24.0.3",
     "nodemon": "^3.1.10",
     "prettier": "^3.5.3"
   },

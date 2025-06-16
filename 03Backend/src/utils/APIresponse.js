@@ -1,9 +1,10 @@
-const APIresponse = (status, message, data) => {
-    return {
-        status: status,
-        message: message,
-        data: data || null // Optional: If no data is provided, set it to null
-    };
+class APIresponse {
+    constructor(statusCode, data, message = "Success"){
+        this.statusCode = statusCode
+        this.data = data
+        this.message = message
+        this.success = statusCode < 400
+    }
 }
 
 export { APIresponse };

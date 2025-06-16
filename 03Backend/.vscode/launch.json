@@ -4,15 +4,15 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {"type":"node","request":"launch","name":"Run nodemon","runtimeExecutable":"nodemon","cwd":"${workspaceFolder}","args":[]},
         {
-            "type": "node",
+            "command": "npm run dev",
+            "name": "Run Dev Server",
+            "type": "node-terminal",
             "request": "launch",
-            "name": "Launch Program",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\src\\index.js"
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
