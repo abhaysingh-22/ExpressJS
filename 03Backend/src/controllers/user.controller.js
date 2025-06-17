@@ -20,27 +20,27 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new APIError("User with this email or username already exists", 409);
   }
 
-  const avatarLocalPath = req.files?.avatar?.[0]?.path;
-  let coverImageLocalPath;
+  let coverImageLocalPath, avatarLocalPath;
 
   if (req.files?.coverImage?.[0]?.path) {
     coverImageLocalPath = req.files.coverImage[0].path;
   }
-
-  if (!avatarLocalPath) {
-    throw new APIError("Avatar file is required", 400);
+  if (req.files?.avatar?.[0]?.path) {
+    avatarLocalPath = req.files.avatar[0].path;
   }
 
-  const avatar = await uploadToCloudinary(avatarLocalPath);
-  const coverImage = await uploadToCloudinary(coverImageLocalPath);
+  let avatar, coverImage;
 
-  if (!avatar) {
-    throw new APIError("Avatar file upload failed", 400);
+  if (avatarLocalPath) {
+    avatar = await uploadToCloudinary(avatarLocalPath);
+  }
+  if (coverImageLocalPath) {
+    coverImage = await uploadToCloudinary(coverImageLocalPath);
   }
 
   const user = await User.create({
     fullName,
-    avatar: avatar.url,
+    avatar: avatar?.url || "",
     coverImage: coverImage?.url || "",
     email,
     password,
@@ -57,7 +57,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(APIresponse(200, "User registered successfully", createdUser));
+    .json( new APIresponse(200, "User registered successfully", createdUser));
 });
 
 export { registerUser };
