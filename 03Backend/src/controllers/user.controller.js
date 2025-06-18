@@ -193,6 +193,6 @@ const refreshAccessToken = asyncHandler(async(req, res) => {
   } catch (error) {
     throw new APIError(401, error?.message || "Invalid Refresh Token")
   }
-})
+});
 
 export { registerUser, loginUser, logoutUser, refreshAccessToken };
