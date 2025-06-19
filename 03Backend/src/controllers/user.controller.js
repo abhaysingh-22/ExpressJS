@@ -257,14 +257,24 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new APIError("Avatar file is missing", 400);
   }
 
+  const user = await User.findById(req.user._id)
+
+  if(user.avatar){
+    const public_id = getPublicIdFromUrl(user.avatar);
+
+    if(public_id){
+      await deleteFromCloudinary(public_id)
+    }
+  }
+
   const avatar = await uploadToCloudinary(avatarLocalPath);
 
   if (!avatar.url) {
     throw new APIError("Error while uploading on Avatar", 400);
   }
 
-  const user = await User.findByIdAndUpdate(
-    User._id,
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
     {
       $set: { avatar: avatar.url },
     },
@@ -273,7 +283,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new APIresponse(200, {}, "Avatar image updated Successfully"));
+    .json(new APIresponse(200, updatedUser, "Avatar image updated Successfully"));
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
@@ -283,13 +293,23 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     throw new APIError("Cover Image file Missing", 400);
   }
 
+  const user = await User.findById(req.user._id)
+
+  if(user.coverImage){
+    const public_id = getPublicIdFromUrl(user.coverImage)
+
+    if(public_id){
+      await deleteFromCloudinary(public_id)
+    }
+  }
+
   const coverImage = await uploadToCloudinary(coverImageLocalPath);
 
   if (!coverImage.url) {
     throw new APIError("Error while uploading Cover Image", 400);
   }
 
-  const user = await User.findByIdAndUpdate(
+  const updatedUser = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: { coverImage: coverImage.url },
@@ -299,10 +319,8 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new APIresponse(200, {}, "Cover Image updated Successfully!"));
+    .json(new APIresponse(200, updatedUser, "Cover Image updated Successfully!"));
 });
-
-
 
 export {
   registerUser,
