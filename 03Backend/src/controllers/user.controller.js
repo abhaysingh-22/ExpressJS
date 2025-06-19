@@ -120,7 +120,9 @@ const loginUser = asyncHandler(async (req, res) => {
       new APIresponse(
         200,
         {
-          user: loggedInUser, accessToken, refreshToken
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
         },
         "You have Successfully logged your id"
       )
@@ -129,19 +131,18 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // for logging out a user we need to remove the cookies and the refresh token and we need to create a middleware for this
 const logoutUser = asyncHandler(async (req, res) => {
-
   // console.log("Logout controller hit");
   await User.findByIdAndUpdate(
     req.user._id,
     {
       $unset: {
-        refreshToken: 1    // this removes the field from document
-      }
+        refreshToken: 1, // this removes the field from document
+      },
     },
     {
-      new: true
+      new: true,
     }
-  )
+  );
 
   const options = {
     httpOnly: true,
@@ -152,47 +153,165 @@ const logoutUser = asyncHandler(async (req, res) => {
     .status(200)
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
-    .json(new APIresponse(200, {}, "User logged out successfully"))
+    .json(new APIresponse(200, {}, "User logged out successfully"));
 });
 
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken = req.cookie.refreshToken || req.body;
 
-const refreshAccessToken = asyncHandler(async(req, res) => {
-  const incomingRefreshToken = req.cookie.refreshToken || req.body
-
-  if(!incomingRefreshToken){
-    throw new APIError("Unauthorized Request", 401)
+  if (!incomingRefreshToken) {
+    throw new APIError("Unauthorized Request", 401);
   }
 
   try {
-    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
-  
-    const user = User.findById(decodedToken?._id)
-  
-    if(!user){
-      throw new APIError("Invalid refresh Token", 401)
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = User.findById(decodedToken?._id);
+
+    if (!user) {
+      throw new APIError("Invalid refresh Token", 401);
     }
-  
-    if(incomingRefreshToken !== user?.refreshToken){
-      throw new APIError("refresh Token is expired or already used", 401)
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new APIError("refresh Token is expired or already used", 401);
     }
-  
+
     const options = {
       httpOnly: true,
       secure: true,
     };
-  
-    const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
-  
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
+
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", newRefreshToken, options)
       .json(
-        new APIresponse(200, {accessToken, refreshToken: newRefreshToken}, "Access token refreshed")
-      )
+        new APIresponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access token refreshed"
+        )
+      );
   } catch (error) {
-    throw new APIError(401, error?.message || "Invalid Refresh Token")
+    throw new APIError(401, error?.message || "Invalid Refresh Token");
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user?._id);
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+  if (!isPasswordCorrect) {
+    throw new APIError("Invalid Password", 400);
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new APIresponse(200, {}, "Password Changed Succesfuly!"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new APIresponse(200, req.user, "User fetched successfully"));
+});
+
+const updateAccountDetail = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+
+  if (!fullName || !email) {
+    throw new APIError("All Fields are required");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.User?._id,
+    {
+      $set: {
+        fullName: fullName,
+        email: email,
+      },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new APIresponse(200, user, "Account details Uploaded Successfully"));
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+
+  if (!avatarLocalPath) {
+    throw new APIError("Avatar file is missing", 400);
+  }
+
+  const avatar = await uploadToCloudinary(avatarLocalPath);
+
+  if (!avatar.url) {
+    throw new APIError("Error while uploading on Avatar", 400);
+  }
+
+  const user = await User.findByIdAndUpdate(
+    User._id,
+    {
+      $set: { avatar: avatar.url },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new APIresponse(200, {}, "Avatar image updated Successfully"));
+});
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+
+  if (!coverImageLocalPath) {
+    throw new APIError("Cover Image file Missing", 400);
+  }
+
+  const coverImage = await uploadToCloudinary(coverImageLocalPath);
+
+  if (!coverImage.url) {
+    throw new APIError("Error while uploading Cover Image", 400);
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: { coverImage: coverImage.url },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new APIresponse(200, {}, "Cover Image updated Successfully!"));
+});
+
+
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetail,
+  updateUserAvatar,
+  updateCoverImage,
+};
