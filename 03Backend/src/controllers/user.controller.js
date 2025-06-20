@@ -257,13 +257,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new APIError("Avatar file is missing", 400);
   }
 
-  const user = await User.findById(req.user._id)
+  const user = await User.findById(req.user._id);
 
-  if(user.avatar){
+  if (user.avatar) {
     const public_id = getPublicIdFromUrl(user.avatar);
 
-    if(public_id){
-      await deleteFromCloudinary(public_id)
+    if (public_id) {
+      await deleteFromCloudinary(public_id);
     }
   }
 
@@ -283,7 +283,9 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new APIresponse(200, updatedUser, "Avatar image updated Successfully"));
+    .json(
+      new APIresponse(200, updatedUser, "Avatar image updated Successfully")
+    );
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
@@ -293,13 +295,13 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     throw new APIError("Cover Image file Missing", 400);
   }
 
-  const user = await User.findById(req.user._id)
+  const user = await User.findById(req.user._id);
 
-  if(user.coverImage){
-    const public_id = getPublicIdFromUrl(user.coverImage)
+  if (user.coverImage) {
+    const public_id = getPublicIdFromUrl(user.coverImage);
 
-    if(public_id){
-      await deleteFromCloudinary(public_id)
+    if (public_id) {
+      await deleteFromCloudinary(public_id);
     }
   }
 
@@ -319,8 +321,84 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new APIresponse(200, updatedUser, "Cover Image updated Successfully!"));
+    .json(
+      new APIresponse(200, updatedUser, "Cover Image updated Successfully!")
+    );
 });
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username?.trim()) {
+    throw new APIError("Username is Missing", 400);
+  }
+
+  // now to get informations like number of subscribers does user have and number of channels the user has subscribed, username etc we need to use aggerate pipelines
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  if(!channel?.length()){
+    throw new APIError("channel does not exist", 400)
+  }
+
+  return res
+  .status(200)
+  .json(new APIresponse(200, channel[0], "User channel fetched Successfully"))
+
+});
+
+
 
 export {
   registerUser,
@@ -332,4 +410,5 @@ export {
   updateAccountDetail,
   updateUserAvatar,
   updateCoverImage,
+  getUserChannelProfile,
 };
