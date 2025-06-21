@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import uploadToCloudinary from "../utils/Cloudinary.js";
 import { APIresponse } from "../utils/APIresponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -157,7 +158,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookie.refreshToken || req.body;
+  const incomingRefreshToken = req.cookies.refreshToken || req.body;
 
   if (!incomingRefreshToken) {
     throw new APIError("Unauthorized Request", 401);
@@ -169,7 +170,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
-    const user = User.findById(decodedToken?._id);
+    const user = await User.findById(decodedToken?._id);
 
     if (!user) {
       throw new APIError("Invalid refresh Token", 401);
@@ -235,7 +236,7 @@ const updateAccountDetail = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findByIdAndUpdate(
-    req.User?._id,
+    req.user?._id,
     {
       $set: {
         fullName: fullName,
@@ -312,7 +313,7 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   }
 
   const updatedUser = await User.findByIdAndUpdate(
-    req.user?._id,
+    req.user._id,
     {
       $set: { coverImage: coverImage.url },
     },
@@ -388,17 +389,72 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if(!channel?.length()){
-    throw new APIError("channel does not exist", 400)
+  if (!channel?.length) {
+    throw new APIError("channel does not exist", 400);
   }
 
   return res
-  .status(200)
-  .json(new APIresponse(200, channel[0], "User channel fetched Successfully"))
-
+    .status(200)
+    .json(
+      new APIresponse(200, channel[0], "User channel fetched Successfully")
+    );
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        // this lookup fetches all the videos whoes id is in the user's watchHistory array
+        from: "videos", // kaha se nikalna
+        localField: "watchHistory", // kya nikalna h
+        foreignField: "_id", //  ye id uski h jaha se hum nikal rhe h like from videos toh ye videos ki id h and jo niche id likhi h vo user ki id h
+        as: "watchHistory", // kis naam se save krna h
+        pipeline: [
+          {
+            $lookup: {
+              // this lookup fetches the owner's details like fullname username and avatar
+              from: "users", // ye vo h jo use kr rha h like abhay
+              localField: "owner", // ye vo h jiska use kr rha h like chai aur code
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    // and this helps to set the condition that what things we want sb kuch dene ka koi matlab nhi h bss server pr load padta h
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
 
+  return res.status(200).json(
+    new APIresponse(
+      200,
+      user[0].watchHistory, // is an array of video objects the user has watched and each video includes details about the video's owner
+      // so basically iska matlab h ki aggregation ka result ek array hota h jisme phela element user[0] wahi user document hai jiska data humne niakala h and user[0].watchHistory mein us user ki sari watched videos jati h, or har video k saath uske owner ki details bhi hoti h
+      "Watch history fetched successfully"
+    )
+  );
+});
 
 export {
   registerUser,
@@ -411,4 +467,5 @@ export {
   updateUserAvatar,
   updateCoverImage,
   getUserChannelProfile,
+  getWatchHistory,
 };
